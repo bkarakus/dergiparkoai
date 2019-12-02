@@ -24,6 +24,6 @@ class Command(BaseCommand):
                 filename = "{}.pdf".format(dosya.url.split('/')[-1])
                 target_path = os.path.join(MAKALE_DIR, filename)
                 relative_path = os.path.join('makaleler', filename)
-                file_move_safe(path, target_path)
+                file_move_safe(path, target_path, allow_overwrite=True)
                 dosya.dosya = relative_path
                 dosya.save()

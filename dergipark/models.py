@@ -10,6 +10,7 @@ class Dergi(models.Model):
     dergi_adi = models.CharField('Dergi Adı', max_length=150)
     oai_url = models.CharField('OAI URL', max_length=200, default='https://dergipark.org.tr/api/public/oai/')
     set_name = models.CharField('Set Adı', max_length=50)
+    son_calisma = models.DateTimeField(verbose_name=u'Son Çalışma Zamanı', blank=True, null=True)
 
     def __unicode__(self):
         return self.dergi_adi
@@ -72,6 +73,7 @@ class Yazar(models.Model):
 class Dosya(models.Model):
     makale = models.ForeignKey(Makale, verbose_name='Makale', on_delete=models.CASCADE)
     url = models.URLField('Dosya Adresi', max_length=150)
+    mimetype = models.CharField(u'Dosya Tipi', max_length=50, blank=True)
     dosya = models.FileField(upload_to='makaleler', blank=True, null=True)
 
     class Meta:

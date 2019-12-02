@@ -79,7 +79,8 @@ class MakaleAdmin(admin.ModelAdmin):
 
 
 class DosyaAdmin(admin.ModelAdmin):
-    list_display = ('url', 'dosya')
+    list_display = ('url', 'dosya', 'mimetype')
+    list_filter = ('mimetype',)
 
 
 # Register your models here.
