@@ -1,29 +1,12 @@
-import os
-
-from django.conf import settings
+# -*- coding: utf-8 -*-
 from django.core.management.base import BaseCommand, CommandError
-from django.core.files.move import file_move_safe
-from django.db.models import Q
 
-from dergipark.models import Dergi, Makale, Sayi, Dosya, Yazar
-from dergipark.utils import download_file
-
-MEDIA_ROOT = settings.MEDIA_ROOT
-MAKALE_DIR = os.path.join(MEDIA_ROOT, 'makaleler')
+from dergipark.tasks import download_files
 
 
 class Command(BaseCommand):
-    help = 'Closes the specified poll for voting'
+    help = 'Dergipark sitesinden kurum dergilerine ait makale ve dosyalarını indirir'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.WARNING('Dosyalar indiriliyor'))
-        for dosya in Dosya.objects.filter(Q(dosya__isnull=True) | Q(dosya='')):
-            self.stdout.write(self.style.WARNING('"%s" indiriliyor' % dosya.url))
-            path = download_file(dosya.url)
-            if path is not None:
-                filename = "{}.pdf".format(dosya.url.split('/')[-1])
-                target_path = os.path.join(MAKALE_DIR, filename)
-                relative_path = os.path.join('makaleler', filename)
-                file_move_safe(path, target_path, allow_overwrite=True)
-                dosya.dosya = relative_path
-                dosya.save()
+        self.stdout.write(u"Makalelere ait dosyalar indiriliyor")
+        download_files(self.stdout)

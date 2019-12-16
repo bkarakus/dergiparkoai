@@ -8,7 +8,8 @@ from django.conf.urls import url
 from django.http import Http404, HttpResponse
 from django.template import Template, Context
 
-from dergipark.models import Dergi, Sayi, Makale, Yazar, Dosya
+from .models import Dergi, Makale, Yazar, Dosya, BatchImport
+from .forms import BatchImportAddForm, BatchImportForm
 
 SAFBULDER_DIR = os.path.join(settings.BASE_DIR, 'site_media', 'safbuilder')
 
@@ -23,6 +24,38 @@ class DosyaInline(admin.TabularInline):
 
 class DergiAdmin(admin.ModelAdmin):
     list_display = ('dergi_adi', 'oai_url', 'set_name')
+
+
+class BatchImportAdmin(admin.ModelAdmin):
+    list_display = ('dergi', 'olusturma_tarihi')
+    form = BatchImportForm
+    add_form = BatchImportAddForm
+    readonly_fields = ('dergi', 'olusturma_tarihi')
+
+    def has_delete_permission(self, request, obj=None):
+        return True
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return True
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        Use special form during creation
+        """
+        defaults = {}
+        if obj is None:
+            defaults['form'] = self.add_form
+        defaults.update(kwargs)
+        return super(BatchImportAdmin, self).get_form(request, obj, **defaults)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ()
+        else:
+            return super(BatchImportAdmin, self).get_readonly_fields(request, obj)
 
 
 class SayiAdmin(admin.ModelAdmin):
@@ -73,7 +106,7 @@ class SayiAdmin(admin.ModelAdmin):
 
 
 class MakaleAdmin(admin.ModelAdmin):
-    list_display = ('sayi', 'title_tr')
+    list_display = ('dergi', 'title_tr')
     list_filter = ('dergi', )
     inlines = [YazarInline, DosyaInline]
 
@@ -85,6 +118,6 @@ class DosyaAdmin(admin.ModelAdmin):
 
 # Register your models here.
 admin.site.register(Dergi, DergiAdmin)
-admin.site.register(Sayi, SayiAdmin)
+admin.site.register(BatchImport, BatchImportAdmin)
 admin.site.register(Makale, MakaleAdmin)
 admin.site.register(Dosya, DosyaAdmin)

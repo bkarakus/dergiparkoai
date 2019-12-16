@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Django settings for dergiparkoai project.
 
@@ -127,3 +128,10 @@ STATIC_URL = '/site_media/static/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'site_media', 'media')
 MEDIA_URL = '/site_media/media/'
+
+# SimpleArchiveFormat dosyalarının oluşturulacağı dizin
+SAFBULDER_TARGET_DIR = os.path.join(BASE_DIR, 'site_media', 'safbuilder')
+# SAFBuilder program dosyalarının bulunduğu dizin
+SAFBUILDER_CMD_DIR = os.path.join(BASE_DIR, 'SAFBuilder')
+# SAFBuilder komutunun yolu
+SAFBUILDER_CMD = './safbuilder.sh'

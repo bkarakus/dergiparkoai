@@ -21,24 +21,25 @@ class Dergi(models.Model):
         unique_together = ('oai_url', 'set_name')
 
 
-class Sayi(models.Model):
-    dergi = models.ForeignKey(Dergi, verbose_name='Dergi', on_delete=models.CASCADE)
-    cilt_no = models.PositiveIntegerField('Cilt No')
-    sayi_no = models.PositiveIntegerField('Sayı No')
-
-    def __unicode__(self):
-        return u'Cilt:{} Sayı:{}'.format(self.cilt_no, self.sayi_no)
+class BatchImport(models.Model):
+    dergi = models.ForeignKey(Dergi, verbose_name=u'Dergi', on_delete=models.CASCADE)
+    olusturma_tarihi = models.DateTimeField(u'Oluşturma Tarihi', auto_now_add=True)
+    import_edildi = models.BooleanField(u"Dspace'e Aktarıldı", default=False)
+    import_edilme_tarihi = models.DateTimeField(u"Dspace'e Aktarılma Zamanı", blank=True, null=True)
 
     class Meta:
-        verbose_name = 'Sayı'
-        verbose_name_plural = 'Sayılar'
-        unique_together = ('dergi', 'cilt_no', 'sayi_no')
-        ordering = ('dergi', 'cilt_no', 'sayi_no')
+        verbose_name = "Dspace'e Aktarma Dosyası"
+        verbose_name_plural = "Dspace'e Aktarma Dosyaları"
 
 
 class Makale(models.Model):
-    dergi = models.ForeignKey(Dergi, verbose_name='Dergi', on_delete=models.CASCADE)
-    sayi = models.ForeignKey(Sayi, verbose_name='Sayı', on_delete=models.CASCADE)
+    dergi = models.ForeignKey(Dergi, on_delete=models.CASCADE)
+    batchimport = models.ForeignKey(
+        BatchImport,
+        verbose_name="Dspace'e Aktarma Dosyası",
+        blank=True, null=True,
+        on_delete=models.SET_NULL
+    )
     identifier = models.CharField('OAI Identifier', max_length=150, unique=True)
     datestamp = models.DateField('Datestamp', null=True, blank=True)
     title_tr = models.CharField('Başlık [TR]', max_length=250, blank=True)
@@ -75,6 +76,7 @@ class Dosya(models.Model):
     url = models.URLField('Dosya Adresi', max_length=150)
     mimetype = models.CharField(u'Dosya Tipi', max_length=50, blank=True)
     dosya = models.FileField(upload_to='makaleler', blank=True, null=True)
+    size = models.PositiveIntegerField('Dosya Boyutu', default=0, editable=False)
 
     class Meta:
         verbose_name = 'Dosya'

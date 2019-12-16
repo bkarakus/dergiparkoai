@@ -13,6 +13,7 @@ def download_file(url, referer=None):
     """ Download file at url and write it to a file, return the path to the file and the url """
     file, path = tempfile.mkstemp()
     file = os.fdopen(file, "w")
+    content_type = None
     # Download url
     req = urllib2.Request(url, headers=headers)
     if referer is not None:
@@ -20,9 +21,10 @@ def download_file(url, referer=None):
     try:
         response = urllib2.urlopen(req)
     except urllib2.HTTPError:
-        return None
+        return None, None
     else:
         dat = response.read()
+        content_type = response.info().getheader('Content-Type')
         # Check if it is gzipped
         if dat[:2] == '\037\213':
             # Data is gzip encoded, decode it
@@ -35,4 +37,4 @@ def download_file(url, referer=None):
         file.write(dat)
         file.close()
         # return file path
-        return path
+        return path, content_type
