@@ -116,8 +116,15 @@ class DosyaAdmin(admin.ModelAdmin):
     list_filter = ('mimetype',)
 
 
+class YazarAdmin(admin.ModelAdmin):
+    list_display = ('yazar_adi', 'yazar_adi_clean',)
+    list_per_page = 250
+    search_fields = ('yazar_adi_clean',)
+
+
 # Register your models here.
 admin.site.register(Dergi, DergiAdmin)
 admin.site.register(BatchImport, BatchImportAdmin)
 admin.site.register(Makale, MakaleAdmin)
 admin.site.register(Dosya, DosyaAdmin)
+admin.site.register(Yazar, YazarAdmin)

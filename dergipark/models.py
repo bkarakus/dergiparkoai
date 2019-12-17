@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 
 from django.db import models
 
+from utils import unicode_tr
+
 # Create your models here.
 
 
@@ -61,7 +63,8 @@ class Makale(models.Model):
 
 class Yazar(models.Model):
     makale = models.ForeignKey(Makale, verbose_name='Makale', on_delete=models.CASCADE)
-    yazar_adi = models.CharField('Yazar Adı', max_length=50)
+    yazar_adi = models.CharField('Yazar Adı', max_length=150)
+    yazar_adi_clean = models.CharField('Yazar Adı (Dspace)', max_length=150, blank=True)
 
     def __unicode__(self):
         return self.yazar_adi
@@ -69,6 +72,22 @@ class Yazar(models.Model):
     class Meta:
         verbose_name = 'Yazar'
         verbose_name_plural = 'Yazarlar'
+
+    def clean_yazar_adi(self):
+        unvanlar = ['dr.', 'yrd.', 'doç.', 'prof.', 'arş.', 'gör.', 'öğr.', 'ögr.',
+                    'Dr.', 'Yrd.', 'Doç.', 'Prof.', 'Arş.', 'Gör.', 'Öğr.', 'Ögr.']
+        yazar_adi = self.yazar_adi.split(';')[0].strip()
+
+        for unvan in unvanlar:
+            if unvan in yazar_adi:
+                yazar_adi = yazar_adi.replace(unvan, '')
+
+        if '-,' in yazar_adi:
+            yazar_adi = yazar_adi.replace('-,', '')
+
+        yazar_adi = yazar_adi.strip(',')
+        yazar_adi = yazar_adi.strip()
+        return unicode_tr(yazar_adi).title()
 
 
 class Dosya(models.Model):

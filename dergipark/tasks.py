@@ -49,6 +49,12 @@ def get_metadata_attr(metadata, attr_name, index):
     return value
 
 
+def clean_yazar_adi():
+    for yazar in Yazar.objects.all():
+        yazar.yazar_adi_clean = yazar.clean_yazar_adi()
+        yazar.save()
+
+
 def harvest(stdout=sys.stdout):
     for dergi in Dergi.objects.all():
         sickle = Sickle(dergi.oai_url)
@@ -81,6 +87,8 @@ def harvest(stdout=sys.stdout):
                 for yazar in metadata['creator']:
                     yazar_adi = yazar.strip()
                     author, created = Yazar.objects.get_or_create(makale=makale, yazar_adi=yazar_adi)
+                    author.yazar_adi_clean = author.clean_yazar_adi()
+                    author.save()
 
             if 'relation' in metadata:
                 for dosya_url in metadata['relation']:
@@ -135,7 +143,6 @@ def build_saf_files(stdout=sys.stdout):
                     'dc.date.issued',
                     'dc.description.abstract[tr_TR]',
                     'dc.description[tr_TR]',
-                    'dc.format',
                     'dc.identifier',
                     'dc.identifier.issn',
                     'dc.language.iso[tr_TR]',
