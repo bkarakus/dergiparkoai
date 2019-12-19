@@ -27,10 +27,17 @@ class DergiAdmin(admin.ModelAdmin):
 
 
 class BatchImportAdmin(admin.ModelAdmin):
-    list_display = ('dergi', 'olusturma_tarihi')
+    list_display = ('dergi', 'olusturma_tarihi', 'download_link')
     form = BatchImportForm
     add_form = BatchImportAddForm
     readonly_fields = ('dergi', 'olusturma_tarihi')
+
+    def get_urls(self):
+        urls = super(BatchImportAdmin, self).get_urls()
+        my_urls = [
+            url(r'^(?P<obj_id>\d+)/download/$', self.download, name="batchimport_download"),
+        ]
+        return my_urls + urls
 
     def has_delete_permission(self, request, obj=None):
         return True
@@ -57,21 +64,10 @@ class BatchImportAdmin(admin.ModelAdmin):
         else:
             return super(BatchImportAdmin, self).get_readonly_fields(request, obj)
 
-
-class SayiAdmin(admin.ModelAdmin):
-    list_display = ('dergi', 'cilt_no', 'sayi_no', 'download_link')
-
-    def get_urls(self):
-        urls = super(SayiAdmin, self).get_urls()
-        my_urls = [
-            url(r'^(?P<obj_id>\d+)/download/$', self.download, name="sayi_download"),
-        ]
-        return my_urls + urls
-
     def download_link(self, obj):
         template = Template('''
         <span class="download">
-            <a href="{% url 'admin:sayi_download' obj.pk %}">İndir (SimpleArchiveFormat)</a>
+            <a href="{% url 'admin:batchimport_download' obj.pk %}">İndir (SimpleArchiveFormat)</a>
         </span>
         ''')
         context = Context({
@@ -87,11 +83,11 @@ class SayiAdmin(admin.ModelAdmin):
 
     def download(self, request, obj_id):
         try:
-            sayi = Sayi.objects.get(pk=obj_id)
-        except Sayi.DoesNotExist:
+            batchimport = BatchImport.objects.get(pk=obj_id)
+        except BatchImport.DoesNotExist:
             raise Http404
         else:
-            dirname = "{}_cilt-{}_sayi-{}".format(sayi.dergi.set_name, sayi.cilt_no, sayi.sayi_no)
+            dirname = "{}_{}".format(batchimport.dergi.set_name, batchimport.olusturma_tarihi.strftime('%Y-%m-%d'))
             file_dir = os.path.join(
                 SAFBULDER_DIR,
                 dirname,
@@ -106,8 +102,9 @@ class SayiAdmin(admin.ModelAdmin):
 
 
 class MakaleAdmin(admin.ModelAdmin):
-    list_display = ('dergi', 'title_tr')
+    list_display = ('dergi', 'title_tr', 'title_en')
     list_filter = ('dergi', )
+    search_fields = ('title_tr', 'title_en',)
     inlines = [YazarInline, DosyaInline]
 
 
@@ -117,7 +114,7 @@ class DosyaAdmin(admin.ModelAdmin):
 
 
 class YazarAdmin(admin.ModelAdmin):
-    list_display = ('yazar_adi', 'yazar_adi_clean',)
+    list_display = ('yazar_adi', 'cleaned_yazar_adi',)
     list_per_page = 250
     search_fields = ('yazar_adi_clean',)
 

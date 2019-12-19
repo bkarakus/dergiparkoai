@@ -51,7 +51,7 @@ def get_metadata_attr(metadata, attr_name, index):
 
 def clean_yazar_adi():
     for yazar in Yazar.objects.all():
-        yazar.yazar_adi_clean = yazar.clean_yazar_adi()
+        yazar.cleaned_yazar_adi = yazar.clean_yazar_adi()
         yazar.save()
 
 
@@ -87,7 +87,7 @@ def harvest(stdout=sys.stdout):
                 for yazar in metadata['creator']:
                     yazar_adi = yazar.strip()
                     author, created = Yazar.objects.get_or_create(makale=makale, yazar_adi=yazar_adi)
-                    author.yazar_adi_clean = author.clean_yazar_adi()
+                    author.clenaed_yazar_adi = author.clean_yazar_adi()
                     author.save()
 
             if 'relation' in metadata:
@@ -162,6 +162,7 @@ def build_saf_files(stdout=sys.stdout):
                 for makale in batchimport.makale_set.all():
                     if makale.dosya_set.filter(size__gt=0).count():
                         filenames = []
+                        relations = []
                         for dosya in makale.dosya_set.filter(size__gt=0):
                             filename = os.path.basename(dosya.dosya.name)
                             dest_filename = os.path.join(working_dir, filename)
@@ -171,14 +172,39 @@ def build_saf_files(stdout=sys.stdout):
                                 pass
                             else:
                                 filenames.append(filename)
+                                relations.append(dosya.url)
                         if filenames:
+                            formatted_date = ''
+                            if makale.datestamp:
+                                formatted_date = makale.datestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+
                             writer.writerow({
                                 'filename': '||'.join(filenames),
-                                'dc.title': makale.title_tr.encode('utf8'),
-                                'dc.contributor': '||'.join(yazar.yazar_adi for yazar in makale.yazar_set.all()).encode(
-                                    'utf8'),
+                                'dc.contributor.author': '||'.join(
+                                    y.cleaned_yazar_adi for y in makale.yazar_set.all()
+                                ).encode('utf8'),
+                                'dc.date': formatted_date,
+                                'dc.date.accessioned': formatted_date,
+                                'dc.date.available': formatted_date,
                                 'dc.date.issued': makale.datestamp.strftime("%m/%d/%Y") if makale.datestamp else '',
-                                'dc.description': makale.description_tr.encode('utf8')
+                                'dc.description.abstract[tr_TR]': '\n'.join(
+                                    [makale.description_tr, makale.description_en]
+                                ).encode('utf8'),
+                                'dc.description[tr_TR]': makale.title_en.encode('utf8'),
+                                'dc.identifier': makale.identifier,
+                                'dc.identifier.issn': makale.dergi.issn,
+                                'dc.language.iso[tr_TR]': makale.language,
+                                'dc.publisher[tr_TR]': makale.dergi.dergi_adi.encode('utf8'),
+                                'dc.relation': '||'.join(relations),
+                                'dc.relation.ispartofseries': '',
+                                'dc.relation.publicationcategory[tr_TR]': u'Ulusal Yayın'.encode('utf8'),
+                                'dc.rights[tr_TR]': 'info:eu-repo/semantics/openAccess',
+                                'dc.subject[tr_TR]': '||'.join(
+                                    [makale.subject_tr, makale.subject_en]
+                                ).encode('utf8'),
+                                'dc.title.alternative[tr_TR]': makale.title_en.encode('utf8'),
+                                'dc.title[tr_TR]': makale.title_tr.encode('utf8'),
+                                'dc.type[tr_TR]': 'Article',
                             })
 
                 os.chdir(SAFBUILDER_CMD_DIR)

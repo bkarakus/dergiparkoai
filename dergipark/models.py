@@ -10,8 +10,12 @@ from utils import unicode_tr
 
 class Dergi(models.Model):
     dergi_adi = models.CharField('Dergi Adı', max_length=150)
-    oai_url = models.CharField('OAI URL', max_length=200, default='https://dergipark.org.tr/api/public/oai/')
+    oai_url = models.CharField(
+        'OAI URL', max_length=200,
+        default='https://dergipark.org.tr/api/public/oai/',
+    )
     set_name = models.CharField('Set Adı', max_length=50)
+    issn = models.CharField('ISSN', max_length=9, blank=True)
     son_calisma = models.DateTimeField(verbose_name=u'Son Çalışma Zamanı', blank=True, null=True)
 
     def __unicode__(self):
@@ -60,11 +64,16 @@ class Makale(models.Model):
         verbose_name = 'Makale'
         verbose_name_plural = 'Makaleler'
 
+    def import_to_dspace(self):
+        titles = [
+
+        ]
+
 
 class Yazar(models.Model):
     makale = models.ForeignKey(Makale, verbose_name='Makale', on_delete=models.CASCADE)
     yazar_adi = models.CharField('Yazar Adı', max_length=150)
-    yazar_adi_clean = models.CharField('Yazar Adı (Dspace)', max_length=150, blank=True)
+    cleaned_yazar_adi = models.CharField('Yazar Adı (Dspace)', max_length=150, blank=True)
 
     def __unicode__(self):
         return self.yazar_adi
