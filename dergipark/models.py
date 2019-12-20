@@ -27,6 +27,21 @@ class Dergi(models.Model):
         unique_together = ('oai_url', 'set_name')
 
 
+class DergiSet(models.Model):
+    set_id = models.IntegerField('Set ID', primary_key=True)
+    set_name = models.CharField(u'Set Adı', max_length=50)
+    dergi = models.ForeignKey(Dergi, verbose_name='Dergi', related_name='sets', on_delete=models.CASCADE)
+    import_to_dspace = models.BooleanField("Dspace'e aktar", default=False)
+
+    class Meta:
+        verbose_name = 'Dergi Alt Seti'
+        verbose_name_plural = 'Dergi Alt Setleri'
+        ordering = ('dergi',)
+
+    def __unicode__(self):
+        return "{} - {}".format(self.dergi.set_name, self.set_name)
+
+
 class BatchImport(models.Model):
     dergi = models.ForeignKey(Dergi, verbose_name=u'Dergi', on_delete=models.CASCADE)
     olusturma_tarihi = models.DateTimeField(u'Oluşturma Tarihi', auto_now_add=True)
@@ -36,10 +51,12 @@ class BatchImport(models.Model):
     class Meta:
         verbose_name = "Dspace'e Aktarma Dosyası"
         verbose_name_plural = "Dspace'e Aktarma Dosyaları"
+        ordering = ('import_edildi',)
 
 
 class Makale(models.Model):
     dergi = models.ForeignKey(Dergi, on_delete=models.CASCADE)
+    dergi_set = models.ForeignKey(DergiSet, verbose_name='DergiSet', blank=True, null=True ,on_delete=models.CASCADE)
     batchimport = models.ForeignKey(
         BatchImport,
         verbose_name="Dspace'e Aktarma Dosyası",
@@ -63,11 +80,6 @@ class Makale(models.Model):
     class Meta:
         verbose_name = 'Makale'
         verbose_name_plural = 'Makaleler'
-
-    def import_to_dspace(self):
-        titles = [
-
-        ]
 
 
 class Yazar(models.Model):

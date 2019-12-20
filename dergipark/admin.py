@@ -5,10 +5,11 @@ import os
 from django.contrib import admin
 from django.conf import settings
 from django.conf.urls import url
+from django.utils import timezone
 from django.http import Http404, HttpResponse
 from django.template import Template, Context
 
-from .models import Dergi, Makale, Yazar, Dosya, BatchImport
+from .models import Dergi, DergiSet, Makale, Yazar, Dosya, BatchImport
 from .forms import BatchImportAddForm, BatchImportForm
 
 SAFBULDER_DIR = os.path.join(settings.BASE_DIR, 'site_media', 'safbuilder')
@@ -27,10 +28,11 @@ class DergiAdmin(admin.ModelAdmin):
 
 
 class BatchImportAdmin(admin.ModelAdmin):
-    list_display = ('dergi', 'olusturma_tarihi', 'download_link')
-    form = BatchImportForm
-    add_form = BatchImportAddForm
-    readonly_fields = ('dergi', 'olusturma_tarihi')
+    list_display = ('dergi', 'olusturma_tarihi', 'download_link', 'import_edildi', 'import_edilme_tarihi')
+    # form = BatchImportForm
+    # add_form = BatchImportAddForm
+    readonly_fields = ('dergi', 'olusturma_tarihi', 'import_edildi', 'import_edilme_tarihi', )
+    actions = ['make_imported']
 
     def get_urls(self):
         urls = super(BatchImportAdmin, self).get_urls()
@@ -39,8 +41,13 @@ class BatchImportAdmin(admin.ModelAdmin):
         ]
         return my_urls + urls
 
+    def make_imported(self, request, queryset):
+        queryset.update(import_edildi=True)
+
+    make_imported.short_description = "Dspace'e aktarıldı olarak işaretle"
+
     def has_delete_permission(self, request, obj=None):
-        return True
+        return False
 
     def has_add_permission(self, request):
         return False
@@ -87,6 +94,8 @@ class BatchImportAdmin(admin.ModelAdmin):
         except BatchImport.DoesNotExist:
             raise Http404
         else:
+            batchimport.import_edildi = True
+            batchimport.import_edilme_tarihi = timezone.now()
             dirname = "{}_{}".format(batchimport.dergi.set_name, batchimport.olusturma_tarihi.strftime('%Y-%m-%d'))
             file_dir = os.path.join(
                 SAFBULDER_DIR,
@@ -103,7 +112,7 @@ class BatchImportAdmin(admin.ModelAdmin):
 
 class MakaleAdmin(admin.ModelAdmin):
     list_display = ('dergi', 'title_tr', 'title_en')
-    list_filter = ('dergi', )
+    list_filter = ('dergi_set', )
     search_fields = ('title_tr', 'title_en',)
     inlines = [YazarInline, DosyaInline]
 
@@ -119,9 +128,16 @@ class YazarAdmin(admin.ModelAdmin):
     search_fields = ('yazar_adi_clean',)
 
 
+class DergiSetAdmin(admin.ModelAdmin):
+    list_display = ('dergi', 'set_id', 'set_name', 'import_to_dspace')
+    list_filter = ('dergi', 'import_to_dspace',)
+
+
 # Register your models here.
+admin.site.register(DergiSet, DergiSetAdmin)
 admin.site.register(Dergi, DergiAdmin)
 admin.site.register(BatchImport, BatchImportAdmin)
 admin.site.register(Makale, MakaleAdmin)
-admin.site.register(Dosya, DosyaAdmin)
-admin.site.register(Yazar, YazarAdmin)
+# admin.site.register(Dosya, DosyaAdmin)
+# admin.site.register(Yazar, YazarAdmin)
+

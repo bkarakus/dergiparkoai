@@ -13,7 +13,7 @@ from django.core.management.color import color_style
 from django.core.files.move import file_move_safe
 from django.db.models import Q
 
-from dergipark.models import Dergi, Makale, Dosya, Yazar, BatchImport
+from dergipark.models import Dergi, DergiSet, Makale, Dosya, Yazar, BatchImport
 from dergipark.utils import download_file
 
 style = color_style()
@@ -55,45 +55,101 @@ def clean_yazar_adi():
         yazar.save()
 
 
+def sync_sets(stdout=sys.stdout):
+    for dergi in Dergi.objects.all():
+        stdout.write('"%s" alt setleri aktariliyor' % dergi.dergi_adi)
+        sickle = Sickle(dergi.oai_url)
+        for s in sickle.ListSets():
+            set_id = int(s.setSpec)
+            try:
+                dergi_set = DergiSet.objects.get(set_id=set_id)
+            except DergiSet.DoesNotExist:
+                set_name = s.setName
+                dergi_set = DergiSet.objects.create(set_id=set_id, set_name=set_name, dergi=dergi)
+        qs = DergiSet.objects.filter(
+            Q(import_to_dspace=False)
+            and (
+                Q(set_name__icontains=u'makale')
+                | Q(set_name__icontains=u'derleme')
+                | Q(set_name__icontains=u'Çeviri')
+                | Q(set_name__icontains=u'değerlendirme')
+                | Q(set_name__icontains=u'tartışma')
+            )
+        )
+        qs.update(import_to_dspace=True)
+
+
 def harvest(stdout=sys.stdout):
     for dergi in Dergi.objects.all():
+        stdout.write('"%s" alt setleri aktariliyor' % dergi.dergi_adi)
+        sickle = Sickle(dergi.oai_url)
+        for s in sickle.ListSets():
+            set_id = int(s.setSpec)
+            try:
+                dergi_set = DergiSet.objects.get(set_id=set_id)
+            except DergiSet.DoesNotExist:
+                set_name = s.setName
+                dergi_set = DergiSet.objects.create(set_id=set_id, set_name=set_name, dergi=dergi)
+        qs = DergiSet.objects.filter(
+            Q(import_to_dspace=False)
+            and (
+                Q(set_name__icontains=u'makale')
+                | Q(set_name__icontains=u'derleme')
+                | Q(set_name__icontains=u'Çeviri')
+                | Q(set_name__icontains=u'değerlendirme')
+                | Q(set_name__icontains=u'tartışma')
+            )
+        )
+        qs.update(import_to_dspace=True)
+
+    for dergi in Dergi.objects.all():
+        stdout.write('"%s" aktariliyor' % dergi.dergi_adi)
         sickle = Sickle(dergi.oai_url)
         if dergi.son_calisma:
             son_calisma = dergi.son_calisma.strftime('%Y-%m-%d')
         else:
             son_calisma = '1970-01-01'
         # records = sickle.ListRecords(**{'metadataPrefix': 'oai_dc', 'set': dergi.set_name, 'from': son_calisma})
-        records = sickle.ListRecords(metadataPrefix='oai_dc', set=dergi.set_name)
-        for record in records:
-            header = record.header
-            metadata = record.metadata
+        headers = sickle.ListIdentifiers(metadataPrefix='oai_dc', ignore_deleted=True)
+        for header in headers:
             identifier = header.identifier
-            datestamp_str = header.datestamp
-            datestamp = datetime.strptime(datestamp_str, '%Y-%m-%dT%H:%M:%SZ')
-            volume_issue = metadata['source'][0]
-            makale, created = Makale.objects.get_or_create(dergi=dergi, identifier=identifier)
-            makale.datestamp = datestamp
-            makale.title_tr = get_metadata_attr(metadata, 'title', 1)
-            makale.title_en = get_metadata_attr(metadata, 'title', 0)
-            makale.description_tr = get_metadata_attr(metadata, 'description', 1)
-            makale.description_en = get_metadata_attr(metadata, 'description', 0)
-            makale.subject_tr = get_metadata_attr(metadata, 'subject', 1)
-            makale.subject_en = get_metadata_attr(metadata, 'subject', 0)
-            makale.language = get_metadata_attr(metadata, 'language', 0)
-            makale.publisher = get_metadata_attr(metadata, 'publisher', 0)
-            makale.save()
+            try:
+                makale = Makale.objects.get(identifier=identifier)
+            except Makale.DoesNotExist:
+                record = sickle.GetRecord(metadataPrefix='oai_dc', identifier=header.identifier)
+                record_header = record.header
+                if record_header.setSpecs[0]:
+                    set_id = int(record_header.setSpecs[0])
+                else:
+                    set_id = None
+                metadata = record.metadata
+                datestamp_str = record_header.datestamp
+                datestamp = datetime.strptime(datestamp_str, '%Y-%m-%dT%H:%M:%SZ')
+                volume_issue = metadata['source'][0]
+                makale, created = Makale.objects.get_or_create(dergi=dergi, identifier=identifier)
+                makale.datestamp = datestamp
+                makale.dergi_set_id = set_id
+                makale.title_tr = get_metadata_attr(metadata, 'title', 1)
+                makale.title_en = get_metadata_attr(metadata, 'title', 0)
+                makale.description_tr = get_metadata_attr(metadata, 'description', 1)
+                makale.description_en = get_metadata_attr(metadata, 'description', 0)
+                makale.subject_tr = get_metadata_attr(metadata, 'subject', 1)
+                makale.subject_en = get_metadata_attr(metadata, 'subject', 0)
+                makale.language = get_metadata_attr(metadata, 'language', 0) or ''
+                makale.publisher = get_metadata_attr(metadata, 'publisher', 0)
+                makale.save()
 
-            if 'creator' in metadata:
-                for yazar in metadata['creator']:
-                    yazar_adi = yazar.strip()
-                    author, created = Yazar.objects.get_or_create(makale=makale, yazar_adi=yazar_adi)
-                    author.clenaed_yazar_adi = author.clean_yazar_adi()
-                    author.save()
+                if 'creator' in metadata:
+                    for yazar in metadata['creator']:
+                        yazar_adi = yazar.strip()
+                        author, created = Yazar.objects.get_or_create(makale=makale, yazar_adi=yazar_adi)
+                        author.clenaed_yazar_adi = author.clean_yazar_adi()
+                        author.save()
 
-            if 'relation' in metadata:
-                for dosya_url in metadata['relation']:
-                    dosya, created = Dosya.objects.get_or_create(makale=makale, url=dosya_url)
-                    dosya.save()
+                if 'relation' in metadata:
+                    for dosya_url in metadata['relation']:
+                        dosya, created = Dosya.objects.get_or_create(makale=makale, url=dosya_url)
+                        dosya.save()
 
         dergi.son_calisma = timezone.now()
         dergi.save()
@@ -103,24 +159,33 @@ def harvest(stdout=sys.stdout):
 def download_files(stdout=sys.stdout):
     stdout.write('Dosyalar indiriliyor')
     for dosya in Dosya.objects.filter(Q(dosya__isnull=True) | Q(dosya='')):
-        stdout.write('"%s" indiriliyor' % dosya.url)
-        path, content_type = download_file(dosya.url)
-        if path is not None:
-            ext = get_file_ext(content_type)
-            filename = "{filename}{ext}".format(filename=dosya.url.split('/')[-1], ext=ext)
-            target_path = os.path.join(MAKALE_DIR, filename)
-            relative_path = os.path.join('makaleler', filename)
-            file_move_safe(path, target_path, allow_overwrite=True)
+        filename = "{filename}{ext}".format(filename=dosya.url.split('/')[-1], ext='.pdf')
+        target_path = os.path.join(MAKALE_DIR, filename)
+        relative_path = os.path.join('makaleler', filename)
+        if os.path.exists(target_path):
             dosya.dosya = relative_path
             dosya.size = dosya.dosya.size
-            dosya.mimetype = content_type
+            dosya.mimetype = 'application/pdf'
             dosya.save()
+        else:
+            stdout.write('"%s" indiriliyor' % dosya.url)
+            path, content_type = download_file(dosya.url)
+            if path is not None:
+                ext = get_file_ext(content_type)
+                filename = "{filename}{ext}".format(filename=dosya.url.split('/')[-1], ext=ext)
+                target_path = os.path.join(MAKALE_DIR, filename)
+                relative_path = os.path.join('makaleler', filename)
+                file_move_safe(path, target_path, allow_overwrite=True)
+                dosya.dosya = relative_path
+                dosya.size = dosya.dosya.size
+                dosya.mimetype = content_type
+                dosya.save()
 
 
 def build_saf_files(stdout=sys.stdout):
     stdout.write(u'Dergiler için dspace dosyaları oluşturuluyor.')
     for dergi in Dergi.objects.all():
-        qs = dergi.makale_set.filter(batchimport=None)
+        qs = dergi.makale_set.filter(batchimport=None, dergi_set__import_to_dspace=True)
         if qs.exists():
             batchimport = BatchImport.objects.create(dergi=dergi)
             qs.update(batchimport=batchimport)
