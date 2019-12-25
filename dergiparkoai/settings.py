@@ -135,3 +135,8 @@ SAFBULDER_TARGET_DIR = os.path.join(BASE_DIR, 'site_media', 'safbuilder')
 SAFBUILDER_CMD_DIR = os.path.join(BASE_DIR, 'SAFBuilder')
 # SAFBuilder komutunun yolu
 SAFBUILDER_CMD = './safbuilder.sh'
+
+try:
+    from .local import *
+except ImportError:
+    pass

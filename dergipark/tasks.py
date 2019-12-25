@@ -81,28 +81,6 @@ def sync_sets(stdout=sys.stdout):
 
 def harvest(stdout=sys.stdout):
     for dergi in Dergi.objects.all():
-        stdout.write('"%s" alt setleri aktariliyor' % dergi.dergi_adi)
-        sickle = Sickle(dergi.oai_url)
-        for s in sickle.ListSets():
-            set_id = int(s.setSpec)
-            try:
-                dergi_set = DergiSet.objects.get(set_id=set_id)
-            except DergiSet.DoesNotExist:
-                set_name = s.setName
-                dergi_set = DergiSet.objects.create(set_id=set_id, set_name=set_name, dergi=dergi)
-        qs = DergiSet.objects.filter(
-            Q(import_to_dspace=False)
-            and (
-                Q(set_name__icontains=u'makale')
-                | Q(set_name__icontains=u'derleme')
-                | Q(set_name__icontains=u'Çeviri')
-                | Q(set_name__icontains=u'değerlendirme')
-                | Q(set_name__icontains=u'tartışma')
-            )
-        )
-        qs.update(import_to_dspace=True)
-
-    for dergi in Dergi.objects.all():
         stdout.write('"%s" aktariliyor' % dergi.dergi_adi)
         sickle = Sickle(dergi.oai_url)
         if dergi.son_calisma:
